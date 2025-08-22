@@ -14,5 +14,7 @@ const config = {
     refresh_token_secret: process.env.REFRESH_TOKEN_SECRET,
     mailer_name: process.env.MAILER_NAME,
     mailer_pass: process.env.MAILER_PASS,
+    access_token_expires_in: process.env.ACCESS_TOKEN_EXPIRES_IN || '15m',
+    refresh_token_expires_in: process.env.REFRESH_TOKEN_EXPIRES_IN || '7d',
 };
 exports.default = config;

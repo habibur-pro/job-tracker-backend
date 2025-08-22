@@ -13,7 +13,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const mongoose_1 = require("mongoose");
-const enum_1 = require("../../enum");
 const idGenerator_1 = __importDefault(require("../../helpers/idGenerator"));
 const UserSchema = new mongoose_1.Schema({
     id: {
@@ -21,14 +20,9 @@ const UserSchema = new mongoose_1.Schema({
         required: [true, 'User ID is required'],
         unique: true,
     },
-    firstName: {
+    name: {
         type: String,
-        required: [true, 'First name is required'],
-        trim: true,
-    },
-    lastName: {
-        type: String,
-        required: [true, 'Last name is required'],
+        required: [true, 'name is required'],
         trim: true,
     },
     email: {
@@ -40,26 +34,16 @@ const UserSchema = new mongoose_1.Schema({
     },
     password: {
         type: String,
-        required: [true, 'Password is required'],
+        default: null,
     },
-    role: {
+    photo: {
         type: String,
-        enum: Object.values(enum_1.UserRole),
-        required: [true, 'User role is required'],
-        default: enum_1.UserRole.STUDENT,
+        default: null,
     },
-    isEmailVerified: {
-        type: Boolean,
-        required: [true, 'Email verification status is required'],
-        default: false,
-    },
-    otpCode: {
-        type: String,
-        required: [true, 'OTP code is required'],
-    },
-    otpExpiresAt: {
-        type: Date,
-        required: [true, 'OTP expiry date is required'],
+    jobProfile: {
+        type: mongoose_1.Schema.Types.ObjectId,
+        default: null,
+        ref: 'job-profile',
     },
 }, {
     timestamps: true,
@@ -72,5 +56,5 @@ UserSchema.pre('validate', function (next) {
         next();
     });
 });
-const User = (0, mongoose_1.model)('User', UserSchema);
+const User = (0, mongoose_1.model)('user', UserSchema);
 exports.default = User;

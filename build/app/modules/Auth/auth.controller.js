@@ -34,15 +34,6 @@ const signIn = (0, asyncHandler_1.default)((req, res) => __awaiter(void 0, void 
         data: data,
     });
 }));
-const verifyOtp = (0, asyncHandler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const data = yield auth_service_1.default.verifyOtp(req.body);
-    (0, sendResponse_1.default)(res, {
-        statusCode: http_status_1.default.OK,
-        success: true,
-        message: 'otp verify success',
-        data: data,
-    });
-}));
 const verifySignin = (0, asyncHandler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const data = yield auth_service_1.default.verifySignin(req.body);
     (0, sendResponse_1.default)(res, {
@@ -52,12 +43,12 @@ const verifySignin = (0, asyncHandler_1.default)((req, res) => __awaiter(void 0,
         data: data,
     });
 }));
-const resendOtp = (0, asyncHandler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const data = yield auth_service_1.default.resendOtp(req.body);
+const autoSignin = (0, asyncHandler_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const data = yield auth_service_1.default.autoSignin(req.body);
     (0, sendResponse_1.default)(res, {
         statusCode: http_status_1.default.OK,
         success: true,
-        message: 'otp resend success',
+        message: 'auto signin success',
         data: data,
     });
 }));
@@ -73,9 +64,8 @@ const refreshToken = (0, asyncHandler_1.default)((req, res) => __awaiter(void 0,
 const AuthController = {
     signup,
     signIn,
-    verifyOtp,
     verifySignin,
-    resendOtp,
     refreshToken,
+    autoSignin,
 };
 exports.default = AuthController;

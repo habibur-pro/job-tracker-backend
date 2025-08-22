@@ -21,33 +21,21 @@ const bcrypt_1 = __importDefault(require("bcrypt"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const config_1 = __importDefault(require("../../config"));
 const user_validation_1 = require("../User/user.validation");
-const mailSender_1 = require("../../utils/mailSender");
-const auth_utils_1 = __importDefault(require("./auth.utils"));
+const ms_1 = __importDefault(require("ms"));
+const axios_1 = __importDefault(require("axios"));
 const refreshTokensDB = [];
 function generateAccessToken(user) {
-    return jsonwebtoken_1.default.sign(user, config_1.default.access_token_secret, { expiresIn: '15m' });
+    return jsonwebtoken_1.default.sign(user, config_1.default.access_token_secret, {
+        expiresIn: config_1.default.access_token_expires_in,
+    });
 }
 function generateRefreshToken(user) {
     const token = jsonwebtoken_1.default.sign(user, config_1.default.refresh_token_secret, {
-        expiresIn: '7d',
+        expiresIn: config_1.default.refresh_token_expires_in,
     });
     refreshTokensDB.push(token);
     return token;
 }
-const generateOTP = () => {
-    return Math.floor(100000 + Math.random() * 900000).toString();
-};
-const getOTPExpiration = () => {
-    return new Date(Date.now() + 3 * 60 * 1000); // 3 minutes in ms
-};
-const sendOtpEmail = (name, otp, email) => __awaiter(void 0, void 0, void 0, function* () {
-    const content = auth_utils_1.default.generateOtpHtml(name, otp);
-    yield (0, mailSender_1.mailSender)({
-        to: email,
-        subject: 'Email validation email from test school',
-        html: content,
-    });
-});
 const signup = (payload) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const isExist = yield user_model_1.default.findOne({ email: payload.email });
@@ -59,13 +47,8 @@ const signup = (payload) => __awaiter(void 0, void 0, void 0, function* () {
         // hash password
         const hashedPassword = yield bcrypt_1.default.hash(payload.password, 10);
         payload.password = hashedPassword;
-        const otpCode = generateOTP();
-        const otpExpiration = getOTPExpiration();
-        payload.otpCode = otpCode;
-        payload.otpExpiresAt = otpExpiration;
         user_validation_1.signUpValidationSchema.parse(payload);
         yield user_model_1.default.create(payload);
-        yield sendOtpEmail(payload === null || payload === void 0 ? void 0 : payload.firstName, otpCode, payload === null || payload === void 0 ? void 0 : payload.email);
         return { message: 'success' };
     }
     catch (error) {
@@ -87,19 +70,20 @@ const signin = (payload) => __awaiter(void 0, void 0, void 0, function* () {
     const accessToken = generateAccessToken({
         id: user.id,
         email: user.email,
-        role: user.role,
     });
     const refreshToken = generateRefreshToken({
         id: user.id,
-        email: user.email,
-        role: user.role,
     });
+    // calculate expiry timestamps
+    const accessTokenExpiresInMs = (0, ms_1.default)(config_1.default.access_token_expires_in || '15m');
+    const refreshTokenExpiresInMs = (0, ms_1.default)(config_1.default.refresh_token_expires_in || '7d');
     const responseData = {
         accessToken,
         refreshToken,
-        userId: user.id,
+        id: user.id,
         email: user.email,
-        name: `${user === null || user === void 0 ? void 0 : user.firstName} ${user === null || user === void 0 ? void 0 : user.lastName}`,
+        name: user.name,
+        accessTokenExpiresAt: Date.now() + accessTokenExpiresInMs,
     };
     return responseData;
 });
@@ -115,59 +99,8 @@ const verifySignin = (payload) => __awaiter(void 0, void 0, void 0, function* ()
     if (!isMatched) {
         throw new ApiErrot_1.default(http_status_1.default.BAD_REQUEST, 'wrong email or password');
     }
-    if (!user.isEmailVerified) {
-        const otpCode = generateOTP();
-        const otpExpiration = getOTPExpiration();
-        user.otpCode = otpCode;
-        user.otpExpiresAt = otpExpiration;
-        yield user.save();
-        yield sendOtpEmail(user === null || user === void 0 ? void 0 : user.firstName, otpCode, user === null || user === void 0 ? void 0 : user.email);
-        throw new ApiErrot_1.default(http_status_1.default.FORBIDDEN, 'your emil is not verified, verify your email first');
-    }
-    return { role: user.role };
+    return { message: 'verify success' };
 });
-const verifyOtp = (payload) => __awaiter(void 0, void 0, void 0, function* () {
-    if (!(payload === null || payload === void 0 ? void 0 : payload.otp)) {
-        throw new ApiErrot_1.default(http_status_1.default.UNAUTHORIZED, 'please provide otp');
-    }
-    const user = yield user_model_1.default.findOne({ otpCode: payload === null || payload === void 0 ? void 0 : payload.otp });
-    if (!user) {
-        throw new ApiErrot_1.default(http_status_1.default.UNAUTHORIZED, 'unauthorize user');
-    }
-    // Check if OTP expired (assuming you have otpExpires field as Date)
-    if (!user.otpExpiresAt || user.otpExpiresAt < new Date()) {
-        throw new ApiErrot_1.default(http_status_1.default.UNAUTHORIZED, 'OTP has expired');
-    }
-    yield user_model_1.default.findOneAndUpdate({ otpCode: payload === null || payload === void 0 ? void 0 : payload.otp }, { isEmailVerified: true }, { new: true });
-    return { message: 'success' };
-});
-const resendOtp = (email) => __awaiter(void 0, void 0, void 0, function* () {
-    try {
-        const user = yield user_model_1.default.findOne({ email });
-        if (!user)
-            throw new ApiErrot_1.default(http_status_1.default.BAD_REQUEST, 'user not found');
-        const otpCode = generateOTP();
-        const otpExpiration = getOTPExpiration();
-        yield sendOtpEmail(user === null || user === void 0 ? void 0 : user.firstName, otpCode, user === null || user === void 0 ? void 0 : user.email);
-        yield user_model_1.default.findOneAndUpdate({ id: user.id }, { otpCode, otpExpiresAt: otpExpiration }, { new: true });
-        return { message: 'sent' };
-    }
-    catch (error) { }
-});
-// app.post('/refresh', (req, res) => {
-//     const { refreshToken } = req.body
-//     if (!refreshToken || !refreshTokensDB.includes(refreshToken)) {
-//         return res.sendStatus(403)
-//     }
-//     jwt.verify(refreshToken, REFRESH_TOKEN_SECRET, (err, user) => {
-//         if (err) return res.sendStatus(403)
-//         const accessToken = generateAccessToken({
-//             id: user.id,
-//             email: user.email,
-//         })
-//         res.json({ accessToken })
-//     })
-// })
 function refreshToken(payload) {
     return __awaiter(this, void 0, void 0, function* () {
         const { refreshToken } = payload;
@@ -176,26 +109,159 @@ function refreshToken(payload) {
         }
         try {
             // Verify refresh token and extract user payload
-            const user = jsonwebtoken_1.default.verify(refreshToken, config_1.default.refresh_token_secret);
+            const token = jsonwebtoken_1.default.verify(refreshToken, config_1.default.refresh_token_secret);
+            const user = yield user_model_1.default.findOne({ id: token.id });
+            if (!user) {
+                throw new ApiErrot_1.default(http_status_1.default.BAD_REQUEST, 'user not found');
+            }
             // Generate new access token
             const accessToken = generateAccessToken({
                 id: user.id,
                 email: user.email,
-                role: user.role,
             });
-            return { accessToken };
+            // Generate new refresh token
+            const newRefreshToken = generateRefreshToken({
+                id: user.id,
+            });
+            // calculate expiry timestamps
+            const accessTokenExpiresInMs = (0, ms_1.default)(config_1.default.access_token_expires_in || '15m');
+            return {
+                accessToken,
+                refreshToken: newRefreshToken,
+                accessTokenExpiresAt: Date.now() + accessTokenExpiresInMs,
+            };
         }
         catch (error) {
             throw new ApiErrot_1.default(http_status_1.default.UNAUTHORIZED, 'Invalid refresh token');
         }
     });
 }
+const autoSignin = (payload) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a, _b, _c;
+    try {
+        let profile;
+        switch (payload.provider) {
+            case 'google': {
+                const { data } = yield axios_1.default.get('https://www.googleapis.com/oauth2/v3/userinfo', {
+                    headers: {
+                        Authorization: `Bearer ${payload.access_token}`,
+                    },
+                });
+                if (!(data === null || data === void 0 ? void 0 : data.email)) {
+                    throw new ApiErrot_1.default(http_status_1.default.UNAUTHORIZED, 'failed login');
+                }
+                const user = yield user_model_1.default.findOne({ email: data === null || data === void 0 ? void 0 : data.email });
+                if (user) {
+                    // Generate new access token
+                    const accessToken = generateAccessToken({
+                        id: user.id,
+                        email: user.email,
+                    });
+                    // Generate new refresh token
+                    const refreshToken = generateRefreshToken({
+                        id: user.id,
+                    });
+                    const accessTokenExpiresInMs = (0, ms_1.default)(config_1.default.access_token_expires_in || '15m');
+                    const responseData = {
+                        accessToken,
+                        refreshToken,
+                        id: user.id,
+                        email: user.email,
+                        name: user.name,
+                        photo: user.photo,
+                        accessTokenExpiresAt: Date.now() + accessTokenExpiresInMs,
+                    };
+                    return responseData;
+                    // generate access token and send to client with others data
+                }
+                else {
+                    const newUser = yield user_model_1.default.create({
+                        email: data === null || data === void 0 ? void 0 : data.email,
+                        name: (data === null || data === void 0 ? void 0 : data.name) || null,
+                        photo: (data === null || data === void 0 ? void 0 : data.picture) || null,
+                    });
+                    const accessToken = generateAccessToken({
+                        id: newUser.id,
+                        email: newUser.email,
+                    });
+                    // Generate new refresh token
+                    const refreshToken = generateRefreshToken({
+                        id: newUser.id,
+                    });
+                    const accessTokenExpiresInMs = (0, ms_1.default)(config_1.default.access_token_expires_in || '15m');
+                    const responseData = {
+                        accessToken,
+                        refreshToken,
+                        id: newUser.id,
+                        email: newUser.email,
+                        name: newUser.name,
+                        photo: newUser.photo,
+                        accessTokenExpiresAt: Date.now() + accessTokenExpiresInMs,
+                    };
+                    return responseData;
+                }
+            }
+            case 'github': {
+                // Step 1: Get GitHub user profile
+                const { data: githubUser } = yield axios_1.default.get('https://api.github.com/user', {
+                    headers: {
+                        Authorization: `Bearer ${payload.access_token}`, // Use access_token here
+                    },
+                });
+                console.log('user data', githubUser);
+                // Step 2: Get GitHub emails
+                const { data: emails } = yield axios_1.default.get('https://api.github.com/user/emails', {
+                    headers: {
+                        Authorization: `Bearer ${payload.access_token}`, // Use same access token
+                    },
+                });
+                console.log('email', emails);
+                const primaryEmail = ((_a = emails.find((e) => e.primary && e.verified)) === null || _a === void 0 ? void 0 : _a.email) ||
+                    ((_b = emails[0]) === null || _b === void 0 ? void 0 : _b.email);
+                if (!primaryEmail) {
+                    throw new ApiErrot_1.default(http_status_1.default.UNAUTHORIZED, 'No verified email found');
+                }
+                // Step 3: Find or create user in your database
+                let user = yield user_model_1.default.findOne({ email: primaryEmail });
+                console.log('exist user', user);
+                if (!user) {
+                    user = yield user_model_1.default.create({
+                        email: primaryEmail,
+                        name: githubUser.name || githubUser.login,
+                        photo: githubUser.avatar_url || null,
+                    });
+                }
+                // Step 4: Generate your backend JWT tokens
+                const accessToken = generateAccessToken({
+                    id: user.id,
+                    email: user.email,
+                });
+                const refreshToken = generateRefreshToken({ id: user.id });
+                const accessTokenExpiresInMs = (0, ms_1.default)(config_1.default.access_token_expires_in || '15m');
+                return {
+                    accessToken,
+                    refreshToken,
+                    id: user.id,
+                    email: user.email,
+                    name: user.name,
+                    photo: user.photo,
+                    accessTokenExpiresAt: Date.now() + accessTokenExpiresInMs,
+                };
+            }
+            default:
+                throw new ApiErrot_1.default(http_status_1.default.BAD_REQUEST, 'Invalid provider');
+        }
+    }
+    catch (error) {
+        console.error(((_c = error === null || error === void 0 ? void 0 : error.response) === null || _c === void 0 ? void 0 : _c.data) || error.message);
+        throw new ApiErrot_1.default(http_status_1.default.UNAUTHORIZED, 'Failed to verify provider access token');
+    }
+});
 const AuthServices = {
     signup,
     signin,
-    verifyOtp,
     verifySignin,
-    resendOtp,
     refreshToken,
+    autoSignin,
 };
 exports.default = AuthServices;

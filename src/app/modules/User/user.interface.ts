@@ -1,4 +1,5 @@
 import { Types } from 'mongoose'
+import { UserRole } from '../../enum'
 export interface IUser {
     id: string
     name: string
@@ -6,6 +7,7 @@ export interface IUser {
     password: string
     photo: string
     jobProfile: Types.ObjectId
+    role: UserRole
     createdAt: Date
     updatedAt: Date
 }

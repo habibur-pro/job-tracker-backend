@@ -1,6 +1,7 @@
 import { Document, Model, model, Schema } from 'mongoose'
 import { IUser } from './user.interface'
 import idGenerator from '../../helpers/idGenerator'
+import { UserRole } from '../../enum'
 const UserSchema = new Schema<IUser>(
     {
         id: {

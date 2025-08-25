@@ -1,4 +1,5 @@
 import { Types } from 'mongoose'
+import { UserRole } from '../../enum'
 export interface IUser {
     id: string
     name: string

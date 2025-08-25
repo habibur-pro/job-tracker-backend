@@ -35,11 +35,6 @@ const UserSchema = new Schema<IUser>(
             default: null,
             ref: 'job-profile',
         },
-        role: {
-            type: String,
-            enum: Object.values(UserRole),
-            default: UserRole.USER,
-        },
     },
     {
         timestamps: true,

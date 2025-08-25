@@ -3,12 +3,11 @@ import { Request, Response, NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
 import httpStatus from 'http-status'
 import config from '../config'
-import { UserRole } from '../enum'
 import ApiError from './ApiErrot'
 
 interface JwtPayload {
     id: string
-    role: UserRole
+    email: string
 }
 
 declare global {
@@ -20,9 +19,8 @@ declare global {
 }
 
 // ✅ Reusable authorize middleware
-export const authorize =
-    (...allowedRoles: UserRole[]) =>
-    (req: Request, res: Response, next: NextFunction) => {
+export const authentication =
+    () => (req: Request, res: Response, next: NextFunction) => {
         try {
             // 1. Extract token
             const authHeader = req.headers.authorization
@@ -42,11 +40,7 @@ export const authorize =
             if (!decoded) {
                 throw new ApiError(httpStatus.UNAUTHORIZED, 'Invalid token')
             }
-
-            // 3. Role check (if roles are passed)
-            if (allowedRoles.length && !allowedRoles.includes(decoded.role)) {
-                throw new ApiError(httpStatus.FORBIDDEN, 'Access denied')
-            }
+            console.log('decoded', decoded)
 
             // 4. Attach user to request
             req.user = decoded

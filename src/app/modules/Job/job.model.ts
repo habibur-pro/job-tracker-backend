@@ -30,10 +30,6 @@ const JobSchema = new Schema<IJob>(
             required: [true, 'Job post URL is required'],
             trim: true,
         },
-        postImage: {
-            type: String,
-            default: '',
-        },
         salary: {
             type: String,
             required: [true, 'Offered salary is required'],

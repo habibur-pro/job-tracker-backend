@@ -23,7 +23,6 @@ export interface IJob {
     companyName: string
     companyWebsite: string
     jobPostUrl: string
-    postImage: string
     salary: string
     expectedSalary: string
     deadline: Date

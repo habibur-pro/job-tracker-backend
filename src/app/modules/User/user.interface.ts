@@ -7,7 +7,6 @@ export interface IUser {
     password: string
     photo: string
     jobProfile: Types.ObjectId
-    role: UserRole
     createdAt: Date
     updatedAt: Date
 }

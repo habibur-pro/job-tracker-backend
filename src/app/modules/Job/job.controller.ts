@@ -42,11 +42,22 @@ const getSingleJob = catchAsync(async (req, res) => {
         data: data,
     })
 })
+const updateStatus = catchAsync(async (req, res) => {
+    const jobId = req.params.jobId
+    const data = await JobService.updateStatus(jobId, req.body)
+    sendResponse(res, {
+        statusCode: httpStatus.OK,
+        success: true,
+        message: 'job status updated successfully',
+        data: data,
+    })
+})
 
 const JobController = {
     addJob,
     updateJob,
     getMyJobs,
     getSingleJob,
+    updateStatus,
 }
 export default JobController

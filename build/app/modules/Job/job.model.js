@@ -47,11 +47,11 @@ const JobSchema = new mongoose_1.Schema({
     },
     expectedSalary: {
         type: String,
-        required: [true, 'Expected salary is required'],
+        default: null,
     },
     deadline: {
         type: Date,
-        required: [true, 'Application deadline is required'],
+        default: null,
     },
     type: {
         type: String,

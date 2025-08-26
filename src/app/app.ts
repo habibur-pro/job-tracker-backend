@@ -6,12 +6,13 @@ import morgan from 'morgan'
 import router from './router'
 const app = express()
 app.use(cors())
-app.use(express.json())
+app.use(express.json({ limit: '10mb' }))
 app.use(morgan('dev'))
 app.use('/api/v1', router)
 app.get('/', (req, res) => {
     res.status(200).json({ message: 'application is running' })
 })
+
 app.use(handleNotFound)
 app.use(globalErrorHandler)
 
